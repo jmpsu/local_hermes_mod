@@ -1,0 +1,34 @@
+version: '3.8'
+services:
+  vllm-engine:
+    image: vllm/vllm-openai:latest
+    container_name: vllm-inference-backend
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - HUGGING_FACE_HUB_TOKEN=${USER_HF_TOKEN}
+    volumes:
+      - ~/.cache/huggingface:/root/.cache/huggingface
+    ports:
+      - "11434:8000"
+    ipc: host
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    command: >
+      --model ${USER_TARGET_MODEL}
+      --quantization ${USER_MODEL_QUANT}
+      --port 8000
+      --gpu-memory-utilization 0.95
+      --max-model-len 4048
+    restart: unless-stopped
+
+  tunnel-agent:
+    image: cloudflare/cloudflared:latest
+    container_name: cloudflared-local-bridge
+    restart: unless-stopped
+    network_mode: "host"
+    command: tunnel --no-autoupdate run --token ${USER_CLOUDFLARE_TUNNEL_TOKEN}
