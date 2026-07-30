@@ -1,0 +1,37 @@
+version: '3.8'
+services:
+  open-webui:
+    image: ghcr.io/open-webui/open-webui:main
+    container_name: user-chat-interface
+    ports:
+      - "127.0.0.1:8080:8080"
+    volumes:
+      - open-webui-storage:/app/backend/data
+    environment:
+      - OPENAI_API_BASE_URL=https://${USER_API_SUBDOMAIN}/v1
+      - OPENAI_API_KEY=sk-authenticated-via-cloudflare-pipes
+      - RAG_EMBEDDING_ENGINE=openai
+      - RAG_OPENAI_API_BASE_URL=https://${USER_API_SUBDOMAIN}/v1
+      - VECTOR_DB=qdrant
+      - QDRANT_URI=http://qdrant-vectorStore:6333
+      - QDRANT_HOST=qdrant-vectorStore
+      - QDRANT_PORT=6333
+    restart: unless-stopped
+    depends_on:
+      - qdrant-vectorStore
+
+  qdrant-vectorStore:
+    image: qdrant/qdrant:latest
+    container_name: qdrant-vectorStore
+    ports:
+      - "127.0.0.1:6333:6333"
+      - "127.0.0.1:6334:6334"
+    volumes:
+      - qdrant-storage:/qdrant/storage
+    environment:
+      - QDRANT__SERVICE__API_KEY=${GENERATED_QDRANT_SECRET}
+    restart: unless-stopped
+
+volumes:
+  open-webui-storage:
+  qdrant-storage:
