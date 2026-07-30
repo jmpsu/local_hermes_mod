@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vault Gateway Router</title>
+    <style>
+        :root { --bg: #0b0f19; --text: #f3f4f6; --card: #111827; --ai: #10b981; --media: #e6a23c; }
+        body { font-family: system-ui, sans-serif; background: var(--bg); color: var(--text); display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; margin: 0; padding: 20px; }
+        h1 { font-size: 2.5rem; margin-bottom: 0.5rem; }
+        p { color: #9ca3af; margin-bottom: 3rem; }
+        .container { display: flex; gap: 2rem; max-width: 800px; width: 100%; }
+        .card { background: var(--card); border: 1px solid #1f2937; border-radius: 12px; flex: 1; padding: 2.5rem; text-align: center; text-decoration: none; color: inherit; transition: transform 0.2s, border-color 0.2s; }
+        .card:hover { transform: translateY(-4px); }
+        .card.ai:hover { border-color: var(--ai); }
+        .card.media:hover { border-color: var(--media); }
+        .icon { font-size: 3.5rem; margin-bottom: 1rem; }
+        .card h2 { margin: 0 0 0.5rem 0; font-size: 1.5rem; }
+    </style>
+</head>
+<body>
+    <h1>System Portal</h1>
+    <p>Select your cloud destination infrastructure</p>
+    <div class="container">
+        <a href="/ai/" class="card ai">
+            <div class="icon">🤖</div>
+            <h2>Local AI Core</h2>
+            <p>Access the private local high-performance LLM deployment.</p>
+        </a>
+        <a href="/media/" class="card media">
+            <div class="icon">🎬</div>
+            <h2>Jellyfin Server</h2>
+            <p>Launch your private media streaming database engine.</p>
+        </a>
+    </div>
+</body>
+</html>
