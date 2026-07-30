@@ -125,12 +125,51 @@ echo "✓ Micro Dry-Run 2: Cross-node network variable structure verified."
 # ==============================================================================
 verify_directive_step "Step 3: Cloud Credential Mapping & Ingestion"
 
-read -rp "Enter Target Production Domain [e.g., joeysvault.app]: " USER_DOMAIN
-read -rsp "Enter Cloudflare Tunnel Token Payload: " USER_INPUT_TOKEN; echo
-read -rp "Enter AWS Access Key ID: " AWS_ID
-read -rsp "Enter AWS Secret Access Key: " AWS_KEY; echo
-read -rp "Enter AWS Default Region [e.g., us-east-1]: " AWS_REG
+# --- Auto-discover Cloudflare tunnel token from existing cloudflared config ---
+CF_CONFIG="${HOME}/.cloudflared/config.yml"
+USER_INPUT_TOKEN=""
+if [ -f "$CF_CONFIG" ]; then
+    USER_INPUT_TOKEN=$(grep -E '^\s*token:' "$CF_CONFIG" | awk '{print $2}' | tr -d '"' | head -n 1)
+fi
+if [ -z "$USER_INPUT_TOKEN" ]; then
+    # Fall back to reading token from any tunnel credential file
+    USER_INPUT_TOKEN=$(find "${HOME}/.cloudflared" -name '*.json' 2>/dev/null -exec grep -h '"t":' {} \; | awk -F'"' '{print $4}' | head -n 1)
+fi
+if [ -z "$USER_INPUT_TOKEN" ]; then
+    read -rsp "Enter Cloudflare Tunnel Token (auto-discovery failed): " USER_INPUT_TOKEN; echo
+else
+    echo "✓ Cloudflare tunnel token auto-discovered from ${CF_CONFIG}"
+fi
+
+# --- Auto-discover AWS credentials from ~/.aws/credentials ---
+AWS_CREDS="${HOME}/.aws/credentials"
+AWS_ID="" AWS_KEY="" AWS_REG="" AWS_BUCKET=""
+if [ -f "$AWS_CREDS" ]; then
+    AWS_ID=$(awk '/^\[/{p=0} /^\[default\]/{p=1} p && /aws_access_key_id/{print $3}' "$AWS_CREDS" | head -n 1)
+    AWS_KEY=$(awk '/^\[/{p=0} /^\[default\]/{p=1} p && /aws_secret_access_key/{print $3}' "$AWS_CREDS" | head -n 1)
+fi
+AWS_CONFIG="${HOME}/.aws/config"
+if [ -f "$AWS_CONFIG" ]; then
+    AWS_REG=$(awk '/^\[/{p=0} /^\[default\]|^\[profile default\]/{p=1} p && /region/{print $3}' "$AWS_CONFIG" | head -n 1)
+fi
+[ -z "$AWS_ID" ]     && { read -rp  "Enter AWS Access Key ID: " AWS_ID; }         || echo "✓ AWS Access Key ID auto-discovered."
+[ -z "$AWS_KEY" ]    && { read -rsp "Enter AWS Secret Access Key: " AWS_KEY; echo; } || echo "✓ AWS Secret Key auto-discovered."
+[ -z "$AWS_REG" ]    && { read -rp  "Enter AWS Default Region [e.g., us-east-1]: " AWS_REG; } || echo "✓ AWS Region auto-discovered: ${AWS_REG}"
 read -rp "Enter Target AWS S3 Bucket Name: " AWS_BUCKET
+
+# --- Auto-discover domain from existing Nginx config ---
+USER_DOMAIN=""
+EXISTING_NGINX=$(find /etc/nginx/sites-enabled /etc/nginx/sites-available 2>/dev/null -maxdepth 1 -type f | xargs grep -lE 'server_name' 2>/dev/null | grep -v default | head -n 1)
+if [ -n "$EXISTING_NGINX" ]; then
+    USER_DOMAIN=$(grep 'server_name' "$EXISTING_NGINX" | awk '{print $2}' | sed 's/;//' | grep -v '^www\.' | head -n 1)
+fi
+if [ -n "$USER_DOMAIN" ]; then
+    echo "✓ Domain auto-discovered from Nginx: ${USER_DOMAIN}"
+    read -rp "Confirm domain [${USER_DOMAIN}] or enter new: " DOMAIN_OVERRIDE
+    [ -n "$DOMAIN_OVERRIDE" ] && USER_DOMAIN="$DOMAIN_OVERRIDE"
+else
+    read -rp "Enter Target Production Domain [e.g., joeysvault.app]: " USER_DOMAIN
+fi
 
 USER_API_SUBDOMAIN="api.${USER_DOMAIN}"
 USER_DOMAIN_FLAT=$(echo "$USER_DOMAIN" | sed 's/[^a-zA-Z0-9]/_/g')
