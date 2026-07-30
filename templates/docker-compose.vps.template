@@ -13,6 +13,7 @@ services:
       - RAG_EMBEDDING_ENGINE=openai
       - RAG_OPENAI_API_BASE_URL=https://${USER_API_SUBDOMAIN}/v1
       - VECTOR_DB=qdrant
+      - QDRANT_URI=http://qdrant-vectorStore:6333
       - QDRANT_HOST=qdrant-vectorStore
       - QDRANT_PORT=6333
     restart: unless-stopped
