@@ -154,8 +154,9 @@ if [ -f "$AWS_CONFIG" ]; then
 fi
 [ -z "$AWS_ID" ]     && { read -rp  "Enter AWS Access Key ID: " AWS_ID; }         || echo "✓ AWS Access Key ID auto-discovered."
 [ -z "$AWS_KEY" ]    && { read -rsp "Enter AWS Secret Access Key: " AWS_KEY; echo; } || echo "✓ AWS Secret Key auto-discovered."
-[ -z "$AWS_REG" ]    && { read -rp  "Enter AWS Default Region [e.g., us-east-1]: " AWS_REG; } || echo "✓ AWS Region auto-discovered: ${AWS_REG}"
-read -rp "Enter Target AWS S3 Bucket Name: " AWS_BUCKET
+[ -z "$AWS_REG" ]    && { AWS_REG="us-east-2"; echo "✓ AWS Region defaulted from bucket: ${AWS_REG}"; } || echo "✓ AWS Region auto-discovered: ${AWS_REG}"
+AWS_BUCKET="s3-554615221537-us-east-2-an"
+echo "✓ AWS S3 Bucket locked: ${AWS_BUCKET}"
 
 # --- Auto-discover domain from existing Nginx config ---
 USER_DOMAIN=""
