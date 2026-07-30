@@ -168,38 +168,79 @@ ssh contabo "mkdir -p ~/joeysvault-core"
 scp ./core/vps_generated/docker-compose.yml contabo:~/joeysvault-core/docker-compose.yml
 scp ./core/vps_generated/s3-sync.sh contabo:~/joeysvault-core/s3-sync.sh
 
-echo "--> Injecting /ai/ proxy block into existing Nginx config (non-destructive merge)..."
-ssh contabo '
+# ── Deploy landing page ────────────────────────────────────────────────────────
+echo "--> Deploying landing page to VPS webroot..."
+WEBROOT="/var/www/${USER_DOMAIN_FLAT}"
+ssh contabo "sudo mkdir -p ${WEBROOT}"
+# Hydrate index.template → index.html (no shell substitutions needed in the HTML itself)
+cp ./templates/index.template ./core/vps_generated/index.html
+scp ./core/vps_generated/index.html contabo:~/joeysvault-core/index.html
+ssh contabo "sudo cp ~/joeysvault-core/index.html ${WEBROOT}/index.html && sudo chown -R www-data:www-data ${WEBROOT}"
+echo "✓ Landing page deployed to ${WEBROOT}/index.html"
+
+# ── Deploy nginx config ────────────────────────────────────────────────────────
+echo "--> Writing full nginx config from template..."
+sed -e "s|\${USER_DOMAIN}|${USER_DOMAIN}|g" \
+    -e "s|\${USER_DOMAIN_FLAT}|${USER_DOMAIN_FLAT}|g" \
+    -e "s|\${USER_JELLYFIN_PORT}|${USER_JELLYFIN_PORT}|g" \
+    ./templates/nginx.template > ./core/vps_generated/nginx.conf
+
+scp ./core/vps_generated/nginx.conf contabo:~/joeysvault-core/nginx.conf
+ssh contabo "
 set -e
-NGINX_CONF="/etc/nginx/sites-available/jellyfin"
-
-# Inject /ai/ location block if not already present
-if ! grep -q "location /ai/" "$NGINX_CONF"; then
-    sudo sed -i "/location \/ {/i\\
-    location /ai/ {\\
-        proxy_pass http://127.0.0.1:8080/;\\
-        proxy_set_header Host \$host;\\
-        proxy_set_header X-Real-IP \$remote_addr;\\
-        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;\\
-        proxy_set_header X-Forwarded-Proto \$scheme;\\
-        proxy_http_version 1.1;\\
-        proxy_set_header Upgrade \$http_upgrade;\\
-        proxy_set_header Connection \"Upgrade\";\\
-        proxy_read_timeout 600s;\\
-        proxy_send_timeout 600s;\\
-    }\\
-" "$NGINX_CONF"
-    echo "✓ /ai/ block injected."
-else
-    echo "✓ /ai/ block already present — skipping."
-fi
-
-# Bump upload limit for RAG document ingestion
-sudo sed -i "s/client_max_body_size 20M/client_max_body_size 500M/" "$NGINX_CONF"
-
+sudo cp ~/joeysvault-core/nginx.conf /etc/nginx/sites-available/joeysvault
+sudo ln -sf /etc/nginx/sites-available/joeysvault /etc/nginx/sites-enabled/joeysvault
+# Disable any old jellyfin-only site that proxied directly to port 8096 at root
+sudo rm -f /etc/nginx/sites-enabled/jellyfin /etc/nginx/sites-enabled/default
 sudo nginx -t && sudo systemctl reload nginx
-echo "✓ Nginx reloaded."
-'
+echo '✓ Nginx reloaded with landing page + /ai/ + /media/ routes.'
+"
+
+# ── Rewire Cloudflare Tunnel ───────────────────────────────────────────────────
+echo ""
+echo "======================================================================"
+echo "  CLOUDFLARE TUNNEL — MANUAL STEPS (run on Contabo VPS)"
+echo "======================================================================"
+echo ""
+echo "  The Cloudflare Tunnel must be updated to send ALL traffic for"
+echo "  joeysvault.app to nginx on port 80 (not directly to Jellyfin 8096)."
+echo ""
+echo "  1. SSH into the VPS:"
+echo "     ssh contabo"
+echo ""
+echo "  2. Check your current tunnel config:"
+echo "     cat /etc/cloudflared/config.yml"
+echo "     # or: sudo cloudflared tunnel ingress validate"
+echo ""
+echo "  3. Find your tunnel ID:"
+echo "     sudo cloudflared tunnel list"
+echo ""
+echo "  4. Update /etc/cloudflared/config.yml so joeysvault.app → nginx:"
+echo ""
+echo '     tunnel: <YOUR_TUNNEL_ID>'
+echo '     credentials-file: /root/.cloudflared/<YOUR_TUNNEL_ID>.json'
+echo '     ingress:'
+echo '       - hostname: joeysvault.app'
+echo '         service: http://localhost:80'
+echo '       - hostname: www.joeysvault.app'
+echo '         service: http://localhost:80'
+echo '       - service: http_status:404'
+echo ""
+echo "  5. Validate and restart the tunnel:"
+echo "     sudo cloudflared tunnel ingress validate"
+echo "     sudo systemctl restart cloudflared"
+echo ""
+echo "  6. Verify routes in Cloudflare dashboard → Zero Trust → Tunnels"
+echo "     OR via CLI:"
+echo "     sudo cloudflared tunnel route dns <TUNNEL_ID> joeysvault.app"
+echo "     sudo cloudflared tunnel route dns <TUNNEL_ID> www.joeysvault.app"
+echo ""
+echo "  After these steps:"
+echo "    https://joeysvault.app        → landing page (timelapse + links)"
+echo "    https://joeysvault.app/ai/    → Open WebUI at 127.0.0.1:8080"
+echo "    https://joeysvault.app/media/ → Jellyfin at 127.0.0.1:8096"
+echo "======================================================================"
+echo ""
 
 echo "--> Starting VPS containers..."
 ssh contabo "
