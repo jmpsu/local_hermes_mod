@@ -9,7 +9,7 @@ services:
     volumes:
       - ~/.cache/huggingface:/root/.cache/huggingface
     ports:
-      - "11434:8000"
+      - "18080:8000"
     ipc: host
     deploy:
       resources:
