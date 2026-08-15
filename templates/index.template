@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Joey's Vault</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Ubuntu:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    html, body {
+      width: 100%; height: 100%;
+      overflow: hidden;
+      background: #000;
+    }
+
+    /* ── YouTube fullscreen background ── */
+    #yt-wrap {
+      position: fixed;
+      top: 50%; left: 50%;
+      /* Keep 16:9 video covering the entire viewport */
+      width: max(100vw, calc(100vh * 16 / 9));
+      height: max(100vh, calc(100vw * 9 / 16));
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    #yt-wrap iframe {
+      width: 100%;
+      height: 100%;
+      border: none;
+    }
+
+    /* subtle dark veil so links stay legible */
+    .veil {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.38);
+      z-index: 1;
+    }
+
+    /* ── Centered nav links ── */
+    nav {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 28px;
+      z-index: 2;
+    }
+
+    nav a {
+      font-family: 'Ubuntu', sans-serif;
+      font-size: 20px;
+      font-weight: 500;
+      color: #ffffff;
+      text-decoration: none;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      padding: 6px 0;
+      border-bottom: 1px solid transparent;
+      transition: color 0.25s, border-color 0.25s;
+    }
+
+    nav a:hover {
+      color: #a78bfa;
+      border-color: #a78bfa;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- YouTube timelapse background -->
+  <div id="yt-wrap"></div>
+  <div class="veil"></div>
+
+  <!-- Navigation links -->
+  <nav>
+    <a href="https://ai.joeysvault.app/">AI</a>
+    <a href="/media/">Media</a>
+  </nav>
+
+  <script>
+    // YouTube IFrame API — loads the astrophotography timelapse as fullscreen BG
+    (function () {
+      var tag = document.createElement('script');
+      tag.src = 'https://www.youtube.com/iframe_api';
+      document.head.appendChild(tag);
+    })();
+
+    var player;
+    function onYouTubeIframeAPIReady() {
+      player = new YT.Player('yt-wrap', {
+        videoId: 'XrQwK9w2OLQ',           // astrophotography timelapse
+        playerVars: {
+          autoplay:        1,
+          mute:            1,
+          loop:            1,
+          playlist:        'XrQwK9w2OLQ',  // required for loop
+          controls:        0,
+          disablekb:       1,
+          rel:             0,
+          showinfo:        0,
+          iv_load_policy:  3,
+          modestbranding:  1,
+          playsinline:     1,
+          fs:              0,
+        },
+        events: {
+          onReady: function (e) { e.target.playVideo(); },
+          // auto-restart if the video somehow ends
+          onStateChange: function (e) {
+            if (e.data === YT.PlayerState.ENDED) e.target.playVideo();
+          }
+        }
+      });
+    }
+  </script>
+
+</body>
+</html>

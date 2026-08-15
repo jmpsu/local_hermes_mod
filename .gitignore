@@ -1,0 +1,8 @@
+# Ignore local generated runtime variables
+.env
+core/
+*.log
+
+# OS generated garbage
+.DS_Store
+Thumbs.db
