@@ -104,7 +104,8 @@ verify_directive_step "Step 3: Cloud Credential Mapping & Ingestion"
 # Hardcoded from live system scans — zero prompts
 USER_DOMAIN="joeysvault.app"
 USER_API_SUBDOMAIN="llm.joeysvault.app"   # matches existing cloudflared tunnel ingress
-USER_DOMAIN_FLAT="joeysvault_app"
+USER_DOMAIN_FLAT="joeysvault"
+WEBROOT_SUFFIX="current"          # actual nginx root: /var/www/joeysvault/current
 USER_INPUT_TOKEN="eyJhIjoiMjFmYjFjODgwNmQ4Nzg5MTdhNDg2ZjU2NGI4ZGYzMDUiLCJzIjoieDBpQXJMWDc0ZkwrUTd4WlJZTlFOTXJoWjN2ek1wY1IyTDIvVnRoS2o4MD0iLCJ0IjoiYzdhMzcwZTAtMDI1Zi00ZjI5LWExMjMtNzliMDcxYWNjOTk1In0="
 AWS_BUCKET="s3-554615221537-us-east-2-an"
 AWS_REG="us-east-2"
@@ -170,12 +171,12 @@ scp ./core/vps_generated/s3-sync.sh contabo:~/joeysvault-core/s3-sync.sh
 
 # ── Deploy landing page ────────────────────────────────────────────────────────
 echo "--> Deploying landing page to VPS webroot..."
-WEBROOT="/var/www/${USER_DOMAIN_FLAT}"
+WEBROOT="/var/www/${USER_DOMAIN_FLAT}/${WEBROOT_SUFFIX}"
 ssh contabo "sudo mkdir -p ${WEBROOT}"
 # Hydrate index.template → index.html (no shell substitutions needed in the HTML itself)
 cp ./templates/index.template ./core/vps_generated/index.html
 scp ./core/vps_generated/index.html contabo:~/joeysvault-core/index.html
-ssh contabo "sudo cp ~/joeysvault-core/index.html ${WEBROOT}/index.html && sudo chown -R www-data:www-data ${WEBROOT}"
+ssh contabo "sudo cp ~/joeysvault-core/index.html ${WEBROOT}/index.html && sudo chown -R www-data:www-data /var/www/${USER_DOMAIN_FLAT}"
 echo "✓ Landing page deployed to ${WEBROOT}/index.html"
 
 # ── Deploy nginx config ────────────────────────────────────────────────────────
