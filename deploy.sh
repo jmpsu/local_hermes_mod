@@ -168,61 +168,16 @@ ssh contabo "mkdir -p ~/joeysvault-core"
 scp ./core/vps_generated/docker-compose.yml contabo:~/joeysvault-core/docker-compose.yml
 scp ./core/vps_generated/s3-sync.sh contabo:~/joeysvault-core/s3-sync.sh
 
-echo "--> Injecting /ai/ proxy block into existing Nginx config (non-destructive merge)..."
+echo "--> Verifying Nginx upload limit for RAG document ingestion..."
+# NOTE: AI chat UI (ai.${USER_DOMAIN}) is routed directly by the Cloudflare
+# Tunnel to Open WebUI — nginx does NOT proxy /ai/ anymore. See TUNNEL.md
+# for the authoritative ingress rule table for both tunnels. If you find
+# yourself re-adding an /ai/ location block here, update TUNNEL.md and the
+# tunnel ingress config in lockstep, or the two will drift out of sync again.
 ssh contabo '
 set -e
-NGINX_CONF="/etc/nginx/sites-available/jellyfin"
+NGINX_CONF="/etc/nginx/sites-available/joeysvault"
 
-if ! grep -q "location /ai/" "$NGINX_CONF"; then
-    # Use Python for reliable injection — sed multiline is too brittle across distros.
-    # Inserts both a redirect block (handles /ai with no trailing slash) and the proxy block
-    # before the first "location / {" or "location /" line in the server block.
-    sudo python3 - "$NGINX_CONF" <<'"'"'PYEOF'"'"'
-import sys, re, shutil, tempfile, os
-
-conf = sys.argv[1]
-with open(conf) as f:
-    text = f.read()
-
-ai_blocks = """
-    location = /ai {
-        return 301 /ai/;
-    }
-
-    location /ai/ {
-        proxy_pass http://127.0.0.1:8080/;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection "Upgrade";
-        proxy_read_timeout 600s;
-        proxy_send_timeout 600s;
-    }
-
-"""
-
-# Insert before the first bare "location /" block (root handler)
-new_text = re.sub(r'(\s*location\s+/\s*\{)', ai_blocks + r'\1', text, count=1)
-if new_text == text:
-    print("WARNING: Could not find root location block — appending before closing brace.")
-    # Fallback: insert before last closing brace of the server block
-    new_text = text.rstrip().rstrip('}') + ai_blocks + '\n}\n'
-
-tmp = conf + '.tmp'
-with open(tmp, 'w') as f:
-    f.write(new_text)
-os.replace(tmp, conf)
-print("Injection complete.")
-PYEOF
-    echo "✓ /ai/ block injected."
-else
-    echo "✓ /ai/ block already present — skipping."
-fi
-
-# Bump upload limit for RAG document ingestion
 if ! grep -q "client_max_body_size 500M" "$NGINX_CONF"; then
     sudo sed -i "s/client_max_body_size [0-9]*[MmGg]/client_max_body_size 500M/" "$NGINX_CONF"
 fi
@@ -261,7 +216,7 @@ verify_directive_step "Final System State Check: End-to-end processing loops est
 echo "======================================================================"
 echo "✅ DEPLOYMENT COMPLETE — ARCHITECTURE IS ALIGNED AND LIVE"
 echo ""
-echo "  AI Chat Interface : https://joeysvault.app/ai/"
+echo "  AI Chat Interface : https://ai.joeysvault.app"
 echo "  Jellyfin Media    : https://joeysvault.app  (root, unchanged)"
 echo "  LLM API Tunnel    : https://llm.joeysvault.app/v1"
 echo "  Qdrant Secret     : $GENERATED_QDRANT_SECRET"

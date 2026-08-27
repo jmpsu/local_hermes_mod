@@ -42,6 +42,7 @@ local_hermes_mod/
 ├── .gitignore
 ├── deploy.sh
 ├── README.md
+├── TUNNEL.md              ← source of truth for Cloudflare Tunnel ingress rules
 ├── templates/
 │   ├── docker-compose.local.template
 │   ├── docker-compose.vps.template
