@@ -1,0 +1,31 @@
+server {
+    listen 80;
+    server_name ${USER_DOMAIN} www.${USER_DOMAIN};
+
+    # Override standard Nginx 1MB limitation to accommodate heavy documentation transfers into RAG storage
+    client_max_body_size 500M;
+
+    # AI chat UI is NOT proxied here — the Cloudflare Tunnel routes
+    # ai.${USER_DOMAIN} directly to Open WebUI (localhost:18080).
+    # See TUNNEL.md for the full ingress rule table. Do not re-add an
+    # /ai/ location block here without also removing/updating the
+    # matching tunnel ingress rule, or the two will silently diverge.
+
+    location / {
+        root /var/www/${USER_DOMAIN_FLAT};
+        index index.html;
+        try_files $uri $uri/ =404;
+    }
+
+    location /media/ {
+        proxy_pass http://127.0.0.1:${USER_JELLYFIN_PORT}/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "Upgrade";
+        proxy_buffering off;
+    }
+}
